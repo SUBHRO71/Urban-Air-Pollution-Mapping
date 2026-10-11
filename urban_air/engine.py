@@ -37,6 +37,8 @@ def preflight(config: RunConfig):
     if not model['compatible']:raise ValueError(model['reason'])
     if config.model=='seasonal_naive' and config.lookback<24:
         raise ValueError('Seasonal naive requires a lookback of at least 24 hourly observations.')
+    if config.model=='seasonal_naive' and config.horizon>24:
+        raise ValueError('The initial seasonal baseline supports horizons up to 24 hours.')
     if config.stations and not set(config.stations).issubset(manifest['stations']):raise ValueError('Selected station is absent from the dataset.')
     selected=config.stations or manifest['stations']
     if model['modality']=='graph' and len(selected)<2:raise ValueError('A graph experiment requires at least two selected stations.')

@@ -29,6 +29,11 @@ def tables(identifier=None):
         if not protocols:protocols=[(cfg['evaluation'],{})]
         for protocol,metrics in protocols:
             row=base|{'protocol':protocol}|metrics
+            category=result.get('holdout',{}).get('category') if protocol=='Holdout' else result.get('cv',{}).get('category') if result.get('cv') else None
+            row.update({f'category_{key}':category.get(key) if category else None for key in ['accuracy','balanced_accuracy','precision_macro','recall_macro','f1_macro','pod','far','csi']})
+            row['category_reason']=None if category else result.get('category_reason','No validated category target')
+            if protocol=='Holdout':
+                row.update({f'train_{k}':v for k,v in result['holdout']['train_metrics'].items()});row.update({f'validation_{k}':v for k,v in result['holdout']['validation_metrics'].items()})
             cv=result.get('cv')
             if cv and protocol.startswith('10'):
                 row.update({f'fold_mean_{k}':v for k,v in cv['mean'].items()});row.update({f'fold_std_{k}':v for k,v in cv['std'].items()});row['folds_completed']=cv['folds']

@@ -24,7 +24,7 @@ def main():
         batch=engine.submit_batch(config)
     print('Batch:',batch['id'])
     while store.get(batch['id'])['status']=='Running':
-        if not process_one():break
+        if not process_one():time.sleep(1)
         state=store.get(batch['id']);print(state['status'],state['result'])
     args.output.parent.mkdir(parents=True,exist_ok=True);args.output.write_bytes(bundle(batch['id']))
     print('Evidence saved:',args.output)

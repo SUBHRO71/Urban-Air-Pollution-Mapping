@@ -5,6 +5,7 @@ import json
 import os
 import sqlite3
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,7 +25,14 @@ def connect():
     HOME.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(HOME / "lab.sqlite3", timeout=30)
     db.row_factory = sqlite3.Row
-    db.execute("PRAGMA journal_mode=WAL")
+    db.execute("PRAGMA busy_timeout=30000")
+    for attempt in range(6):
+        try:
+            if db.execute("PRAGMA journal_mode").fetchone()[0] != 'wal':db.execute("PRAGMA journal_mode=WAL")
+            break
+        except sqlite3.OperationalError:
+            if attempt==5:raise
+            time.sleep(.2)
     db.execute("CREATE TABLE IF NOT EXISTS records (id TEXT PRIMARY KEY, kind TEXT, status TEXT, parent TEXT, fingerprint TEXT, created TEXT, updated TEXT, payload TEXT, result TEXT)")
     db.execute("CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY, run TEXT, time TEXT, message TEXT)")
     db.commit()
@@ -66,7 +74,8 @@ def update(identifier, status=None, result=None, payload=None):
             assignments.append(f"{key}=?")
             values.append(json.dumps(val, allow_nan=False) if key != "status" else val)
     with LOCK, connect() as db:
-        db.execute(f"UPDATE records SET {', '.join(assignments)} WHERE id=?", [*values, identifier])
+        condition=" AND status NOT IN ('Paused','Cancelled')" if status in {'Validating','Preparing','Training','Evaluating'} else ""
+        db.execute(f"UPDATE records SET {', '.join(assignments)} WHERE id=?"+condition, [*values, identifier])
     return get(identifier)
 
 def event(identifier, message):

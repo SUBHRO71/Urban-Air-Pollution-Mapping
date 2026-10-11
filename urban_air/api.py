@@ -27,6 +27,15 @@ async def lifespan(app):
 
 app=FastAPI(title='Urban Air Lab',version='0.1.0',lifespan=lifespan)
 
+@app.middleware('http')
+async def protect_local_writes(request,call_next):
+    from urllib.parse import urlparse
+    from fastapi.responses import JSONResponse
+    origin=request.headers.get('origin')
+    if request.method not in {'GET','HEAD','OPTIONS'} and origin and urlparse(origin).hostname not in {'localhost','127.0.0.1'}:
+        return JSONResponse({'detail':'External websites cannot modify this local research workspace.'},status_code=403)
+    return await call_next(request)
+
 @app.exception_handler(ValueError)
 async def bad_input(request,exc):
     from fastapi.responses import JSONResponse
