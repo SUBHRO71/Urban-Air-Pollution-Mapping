@@ -1,0 +1,6 @@
+{
+  "datasets": [],
+  "models": [],
+  "targets": {},
+  "settings": {"evaluation": "both", "lookback": 24, "horizon": 1, "preset": "research", "epochs": 30, "patience": 5, "hidden": 32, "batch_size": 64, "seed": 42, "device": "cpu"}
+}

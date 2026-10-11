@@ -1,0 +1,5 @@
+{
+  "datasets": [],
+  "models": [],
+  "settings": {"evaluation": "both", "lookback": 24, "horizon": 1, "preset": "quick", "max_origins": 1200, "epochs": 3, "hidden": 16, "batch_size": 64, "seed": 42, "device": "cpu"}
+}
