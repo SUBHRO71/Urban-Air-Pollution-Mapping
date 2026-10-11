@@ -51,8 +51,9 @@ def categories(y, p):
 def aqi_from_hourly(frame, units):
     """CPCB running-window AQI with minimum three pollutants incl. PM.
 
-    Requires 16/24 hourly measurements for daily-window species and 6/8
-    for eight-hour species. Input must already be an hourly indexed table.
+    Requires 16/24 hourly measurements. For eight-hour species the project
+    conservatively also requires all 8 trailing hourly bins. This is a project
+    completeness policy, not an asserted CPCB 6-of-8 exception.
     """
     import pandas as pd
     indices={}
@@ -62,7 +63,8 @@ def aqi_from_hourly(frame, units):
         expected="mg/m³" if name=="CO" else "µg/m³"
         if unit!=expected:continue
         window=8 if name in {"CO","O3"} else 24
-        avg=frame[name].rolling(window,min_periods=6 if window==8 else 16).mean()
+        avg=frame[name].rolling(window,min_periods=window if window==8 else 16).mean()
+        if window==8:avg=avg.where(frame[name].rolling(24,min_periods=16).count()>=16)
         indices[name]=pd.Series(subindex(avg.to_numpy(),name),index=avg.index).where(avg.notna())
     if not indices:return pd.Series(np.nan,index=frame.index)
     vals=pd.DataFrame(indices)

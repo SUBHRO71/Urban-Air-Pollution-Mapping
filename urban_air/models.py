@@ -55,16 +55,17 @@ class GatedResidual(nn.Module):
 class TemporalNet(nn.Module):
     def __init__(self, kind, features, hidden, nodes, lookback):
         super().__init__();self.kind=kind;self.nodes=nodes;self.aux=None
-        self.project=nn.Linear(features,hidden)
-        self.conv=nn.Sequential(nn.Conv1d(features,hidden,3,padding=2),nn.GELU(),nn.Conv1d(hidden,hidden,3,padding=2),nn.GELU())
-        self.auto=nn.Sequential(nn.Linear(features,hidden),nn.GELU());self.decode=nn.Linear(hidden,features)
-        self.variable=nn.Linear(features,features);self.static=nn.Embedding(nodes,hidden);self.gated=GatedResidual(hidden)
-        self.attention=nn.Linear(hidden*(2 if kind in {"bilstm","cnn_bilstm"} else 1),1)
-        enc=nn.TransformerEncoderLayer(hidden,4,hidden*2,dropout=0,batch_first=True)
-        self.transformer=nn.TransformerEncoder(enc,1,enable_nested_tensor=False)
+        if kind in {'transformer','transformer_lstm','tft'}:self.project=nn.Linear(features,hidden)
+        if kind in {'cnn','cnn_lstm','cnn_bilstm'}:self.conv=nn.Sequential(nn.Conv1d(features,hidden,3,padding=2),nn.GELU(),nn.Conv1d(hidden,hidden,3,padding=2),nn.GELU())
+        if kind=='autoencoder_lstm':self.auto=nn.Sequential(nn.Linear(features,hidden),nn.GELU());self.decode=nn.Linear(hidden,features)
+        if kind=='tft':self.variable=nn.Linear(features,features);self.static=nn.Embedding(nodes,hidden);self.gated=GatedResidual(hidden)
+        if kind in {'lstm_attention','tft'}:self.attention=nn.Linear(hidden,1)
+        if kind in {'transformer','transformer_lstm'}:
+            enc=nn.TransformerEncoderLayer(hidden,4,hidden*2,dropout=0,batch_first=True)
+            self.transformer=nn.TransformerEncoder(enc,1,enable_nested_tensor=False)
         in_width=hidden if kind in {"cnn_lstm","cnn_bilstm","transformer_lstm","autoencoder_lstm","tft"} else features
         recurrent=nn.GRU if kind=="gru" else nn.LSTM
-        self.rnn=recurrent(in_width,hidden,batch_first=True,bidirectional=kind in {"bilstm","cnn_bilstm"})
+        if kind not in {'cnn','transformer'}:self.rnn=recurrent(in_width,hidden,batch_first=True,bidirectional=kind in {"bilstm","cnn_bilstm"})
         self.output=nn.Linear(hidden*(2 if kind in {"bilstm","cnn_bilstm"} else 1),1)
         positions=torch.arange(lookback,dtype=torch.float32)[:,None]
         divisor=torch.exp(torch.arange(0,hidden,2,dtype=torch.float32)*(-math.log(10000)/hidden))
@@ -97,8 +98,8 @@ class GraphNet(nn.Module):
     def __init__(self,kind,features,hidden,adjacency):
         super().__init__();self.kind=kind;self.register_buffer('adjacency',torch.tensor(adjacency,dtype=torch.float32))
         self.project=nn.Linear(features,hidden)
-        self.rnn=nn.LSTM(hidden,hidden,batch_first=True)
-        self.temporal=nn.Conv1d(hidden,hidden,3,padding=2)
+        if kind=='gcn_lstm':self.rnn=nn.LSTM(hidden,hidden,batch_first=True)
+        else:self.temporal=nn.Conv1d(hidden,hidden,3,padding=2)
         self.output=nn.Linear(hidden,1)
     def forward(self,x):
         spatial=torch.einsum('ij,btjf->btif',self.adjacency,x)
@@ -119,10 +120,13 @@ class ConvLSTMCell(nn.Module):
 class GridNet(nn.Module):
     def __init__(self,kind,features,hidden,shape,lookback):
         super().__init__();self.kind=kind;self.shape=shape;self.hidden=hidden
-        self.cell=ConvLSTMCell(features,hidden);self.att=nn.Linear(hidden,1)
-        self.down=nn.Sequential(nn.Conv2d(features*lookback,hidden,3,padding=1),nn.GELU(),nn.Conv2d(hidden,hidden,3,padding=1),nn.GELU())
-        self.bottom=nn.Sequential(nn.Conv2d(hidden,hidden*2,3,padding=1),nn.GELU())
-        self.up=nn.Sequential(nn.Conv2d(hidden*3,hidden,3,padding=1),nn.GELU())
+        if kind=='unet':
+            self.down=nn.Sequential(nn.Conv2d(features*lookback,hidden,3,padding=1),nn.GELU(),nn.Conv2d(hidden,hidden,3,padding=1),nn.GELU())
+            self.bottom=nn.Sequential(nn.Conv2d(hidden,hidden*2,3,padding=1),nn.GELU())
+            self.up=nn.Sequential(nn.Conv2d(hidden*3,hidden,3,padding=1),nn.GELU())
+        else:
+            self.cell=ConvLSTMCell(features,hidden)
+            if kind=='convlstm_attention':self.att=nn.Linear(hidden,1)
         self.output=nn.Conv2d(hidden,1,1)
     def forward(self,x):
         b,t,n,f=x.shape;rows,cols=self.shape

@@ -46,7 +46,7 @@ def test_batch_accounts_for_unprepared_sources_and_incompatible_models(grid_snap
     batch=engine.submit_batch(config);children=storage.records('run',batch['id']);assert len(children)==4
     assert sum(c['status']=='Unavailable' for c in children)==2
 
-@pytest.mark.parametrize('kind',['gru','cnn_lstm','tft','gcn_lstm','stgnn','unet','convlstm','convlstm_attention','autoencoder_lstm'])
+@pytest.mark.parametrize('kind',NEURAL)
 def test_trained_model_artifact_roundtrip_on_grid(kind,grid_snapshot):
     cfg=RunConfig(dataset=grid_snapshot['id'],target='NO2',model=kind,evaluation='holdout',lookback=8,epochs=1,hidden=8,max_origins=600)
     record=engine.submit(cfg);engine.run_experiment(record['id']);run=storage.get(record['id'])

@@ -26,7 +26,7 @@ SOURCES = [
 ]
 
 def catalog():
-    snapshots = [r["payload"] | {"id": r["id"], "status": r["status"]} for r in store.records("dataset")]
+    snapshots = [r["payload"] | {"id": r["id"], "status": r["status"]} for r in store.records("dataset") if r['status']!='Superseded']
     return snapshots + [s for s in SOURCES if not any(d.get("source_id") == s["id"] for d in snapshots)]
 
 def save_snapshot(frame: pd.DataFrame, mapping: CSVMapping, source_id=None):
@@ -45,6 +45,12 @@ def save_snapshot(frame: pd.DataFrame, mapping: CSVMapping, source_id=None):
         raise ValueError("Choose between 1 and 80 numeric features.")
     for c in features:
         frame[c] = pd.to_numeric(frame[c], errors="coerce").replace([np.inf, -np.inf, -200], np.nan)
+    invalid_negative={}
+    for c,unit in targets.items():
+        if unit in {'µg/m³','μg/m³','ug/m3','mg/m³','mg/m3','ppb'}:
+            invalid_negative[c]=int((frame[c]<0).sum())
+            # Impossible negative concentrations are source-invalid, not severe episodes.
+            frame.loc[frame[c]<0,c]=np.nan
     if len(frame) > 2_000_000 or frame["station"].nunique() > 256:
         raise ValueError("Local import limit: 2 million rows and 256 stations.")
     duplicate_count = int(frame.duplicated(["timestamp", "station"]).sum())
@@ -71,7 +77,10 @@ def save_snapshot(frame: pd.DataFrame, mapping: CSVMapping, source_id=None):
     identifier = f"ds-{checksum[:16]}"
     old = store.get(identifier)
     if old:
-        return old["payload"] | {"id": identifier, "status": old["status"]}
+        payload=old['payload']|{'adapter_version':'1.1','invalid_negative_targets':invalid_negative}
+        store.update(identifier,payload=payload)
+        store.atomic_json(store.HOME/'snapshots'/identifier/'manifest.json',payload)
+        return payload | {"id": identifier, "status": old["status"]}
     stations = sorted(frame.station.unique().tolist())
     grid_shape, grid_stations = None, None
     if len(coords) == len(stations):
@@ -96,7 +105,7 @@ def save_snapshot(frame: pd.DataFrame, mapping: CSVMapping, source_id=None):
         "frequency": mapping.frequency, "timezone": mapping.timezone, "rejected_timestamps": rejected,
         "duplicates_averaged": duplicate_count, "missing_percent": missing,
         "graph_ready": len(stations) > 1, "grid_shape": grid_shape, "grid_stations": grid_stations,
-        "adapter_version": "1.0", "description": "Frozen historical observations; model inputs are processed within each training fold.",
+        "adapter_version": "1.1", "invalid_negative_targets":invalid_negative, "description": "Frozen historical observations; impossible negative concentrations are masked. Model inputs are processed within each training fold.",
     }
     store.atomic_json(directory / "manifest.json", manifest)
     store.create("dataset", manifest, "Ready", identifier=identifier)
@@ -127,8 +136,10 @@ def download_uci(beijing=False):
             else:
                 frame = pd.concat([pd.read_csv(io.BytesIO(archive.read(n))) for n in names], ignore_index=True)
             frame["timestamp"] = pd.to_datetime(frame[["year", "month", "day", "hour"]]).dt.tz_localize("Asia/Shanghai").dt.tz_convert("UTC")
-            frame["wind_sin"] = np.sin(pd.Categorical(frame.wd).codes * 2*np.pi/16)
-            frame["wind_cos"] = np.cos(pd.Categorical(frame.wd).codes * 2*np.pi/16)
+            compass={name:i for i,name in enumerate(['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'])}
+            angle=frame.wd.map(compass)*2*np.pi/16
+            frame["wind_sin"] = np.sin(angle)
+            frame["wind_cos"] = np.cos(angle)
             features = ["PM2.5", "PM10", "SO2", "NO2", "CO", "O3", "TEMP", "PRES", "DEWP", "RAIN", "WSPM", "wind_sin", "wind_cos"]
             targets = {c: "µg/m³" for c in ["PM2.5", "PM10", "SO2", "NO2", "CO", "O3"]}
             mapping = CSVMapping(name="Beijing · 12-station history", source="UCI Beijing Multi-Site", timezone="Asia/Shanghai", features=features, targets=targets, source_url=SOURCES[1]["source_url"], license="CC BY 4.0; cite Chen (2017), DOI 10.24432/C5RK5G")
@@ -168,9 +179,20 @@ def import_openaq(config: OpenAQImport):
     if end <= start or end-start > pd.Timedelta(days=730):
         raise ValueError("Choose a positive date range no longer than two years.")
     headers = {"X-API-Key": key}
-    rows, units = [], {}
-    for sensor in config.sensor_ids:
-        station = f"OpenAQ sensor {sensor}"
+    rows, units, sensors, coordinates = [], {}, [], []
+    for location in config.location_ids:
+        response=requests.get(f'https://api.openaq.org/v3/locations/{location}',headers=headers,timeout=45);response.raise_for_status()
+        locations=response.json().get('results',[])
+        if not locations:raise ValueError(f'OpenAQ location {location} was not found.')
+        info=locations[0];station=f"OpenAQ location {info['id']}"
+        coordinate=info.get('coordinates') or {}
+        if coordinate.get('latitude') is not None and coordinate.get('longitude') is not None:coordinates.append({'station':station,**coordinate})
+        for sensor in info.get('sensors',[]):
+            if not config.sensor_ids or sensor['id'] in config.sensor_ids:sensors.append((sensor['id'],station))
+    if not sensors:raise ValueError('No selected sensors belong to these verified locations.')
+    if config.sensor_ids and set(config.sensor_ids)-{s[0] for s in sensors}:raise ValueError('One or more sensor IDs do not belong to the selected locations.')
+    if len(sensors)>50:raise ValueError('Select fewer sensors; local import limit is 50.')
+    for sensor,station in sensors:
         for page in range(1, 101):
             r = requests.get(f"https://api.openaq.org/v3/sensors/{sensor}/hours", headers=headers, params={"datetime_from": start.isoformat(), "datetime_to": end.isoformat(), "limit": 1000, "page": page}, timeout=45)
             r.raise_for_status(); records = r.json().get("results", [])
@@ -193,6 +215,9 @@ def import_openaq(config: OpenAQImport):
         raise ValueError("No OpenAQ historical observations matched this selection.")
     long = pd.DataFrame(rows)
     frame = long.pivot_table(index=["timestamp", "station"], columns="pollutant", values="value", aggfunc="mean").reset_index()
+    for col in ['latitude','longitude']:
+        coordinate_map={item['station']:item[col] for item in coordinates}
+        frame[col]=frame.station.map(coordinate_map)
     mapping = CSVMapping(name=config.name, source="OpenAQ", targets=units, features=list(units), source_url="https://docs.openaq.org/resources/measurements", license="OpenAQ provider-specific terms; consult source licenses before redistribution")
     return save_snapshot(frame, mapping, "openaq")
 

@@ -42,3 +42,7 @@ coverage/
 Thumbs.db
 Desktop.ini
 *.log
+*.egg-info/
+*.tsbuildinfo
+.impeccable/review/
+.impeccable/mocks/

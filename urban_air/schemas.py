@@ -43,8 +43,8 @@ class CSVMapping(BaseModel):
 
 class OpenAQImport(BaseModel):
     name: str = "OpenAQ historical snapshot"
-    sensor_ids: list[int] = Field(min_length=1, max_length=20)
+    location_ids: list[int] = Field(min_length=1, max_length=10)
+    sensor_ids: list[int] = Field(default_factory=list, max_length=50)
     date_from: str
     date_to: str
     api_key: str = ""
-

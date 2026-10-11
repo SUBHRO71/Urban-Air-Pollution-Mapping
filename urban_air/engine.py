@@ -47,8 +47,12 @@ def preflight(config: RunConfig):
     times=frame.timestamp.nunique()
     if config.preset=='quick':times=min(times,config.max_origins+config.lookback+config.horizon)
     n=times-config.lookback-config.horizon+1
+    features=config.feature_columns or manifest['features']
+    estimated_window_bytes=max(n,0)*config.lookback*len(selected)*len(features)*4
+    if estimated_window_bytes>1_000_000_000:
+        raise ValueError('Forecast windows exceed the 1 GB input-memory budget. Choose fewer stations, a shorter lookback, or the quick-check preset.')
     splits,cutoff=make_splits(n,config.train_ratio,config.horizon,config.evaluation)
-    return {'dataset':manifest,'model':model,'origins':n,'folds':len(splits),'holdout_cutoff':cutoff,'estimates':{'fits':len(splits),'epochs_per_fit':config.epochs,'device':config.device},'protocol':'Chronological; training labels purged before evaluation origins','label':'Quick check - reduced history' if config.preset=='quick' else 'Research run - full selected history'}
+    return {'dataset':manifest,'model':model,'origins':n,'folds':len(splits),'holdout_cutoff':cutoff,'estimates':{'fits':len(splits),'epochs_per_fit':config.epochs,'device':config.device,'window_megabytes':round(estimated_window_bytes/1e6,1)},'protocol':'Chronological; training labels purged before evaluation origins','label':'Quick check - reduced history' if config.preset=='quick' else 'Research run - full selected history'}
 
 def submit(config: RunConfig,parent=None,force=False):
     manifest,_=datasets.read(config.dataset)
