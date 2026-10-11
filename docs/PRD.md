@@ -1,10 +1,10 @@
 # Urban Air Lab: Product Requirements Document
 
-**Project:** AI-Based Urban Air Quality Prediction and Pollution Hotspot Mapping  
-**Version:** 0.1, implementation proposal  
-**Date:** 11 October 2026  
-**Audience:** academic project team and project reviewers  
-**Delivery:** local web dashboard; optional GPU training  
+- **Project:** AI-Based Urban Air Quality Prediction and Pollution Hotspot Mapping
+- **Version:** 0.1, implementation proposal
+- **Date:** 11 October 2026
+- **Audience:** academic project team and project reviewers
+- **Delivery:** local web dashboard; optional GPU training
 **Repository:** [Urban-Air-Pollution-Mapping](https://github.com/SUBHRO71/Urban-Air-Pollution-Mapping)
 
 This document specifies the project to build. It does not describe an implemented dashboard or measured model performance. Confirmed priorities are academic comparison, a polished demonstration, local execution, optional GPU support, and incremental public GitHub commits. Dataset snapshots, exact hardware, and the implementation stack remain to be selected.

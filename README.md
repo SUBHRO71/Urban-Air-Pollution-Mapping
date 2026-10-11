@@ -9,6 +9,7 @@ The intended product lets a researcher choose a dataset and model, compare chron
 ## Planning documents
 
 - [Product requirements document](docs/PRD.md): datasets, all requested model/hybrid labels, evaluation, batch runner, metrics, exports, architecture, milestones, and acceptance criteria.
+- [Shareable PRD PDF](output/pdf/Urban_Air_Lab_PRD.pdf).
 - [Dashboard design brief](docs/UX_DESIGN_BRIEF.md): proposed colors, layouts, typography, tooltips, responsive behavior, and accessibility.
 - [Research notes](docs/RESEARCH_NOTES.md): the supplied 30-paper bibliography, checked sources, and scientific constraints.
 - [Product context](PRODUCT.md): confirmed priorities and open decisions.
