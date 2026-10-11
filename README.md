@@ -8,8 +8,12 @@ The intended product lets a researcher choose a dataset and model, compare chron
 
 ## Planning documents
 
-- [Product context](PRODUCT.md)
-- Product requirements, evidence notes, and a dashboard design brief will be added in the next planning commits.
+- [Product requirements document](docs/PRD.md): datasets, all requested model/hybrid labels, evaluation, batch runner, metrics, exports, architecture, milestones, and acceptance criteria.
+- [Dashboard design brief](docs/UX_DESIGN_BRIEF.md): proposed colors, layouts, typography, tooltips, responsive behavior, and accessibility.
+- [Research notes](docs/RESEARCH_NOTES.md): the supplied 30-paper bibliography, checked sources, and scientific constraints.
+- [Product context](PRODUCT.md): confirmed priorities and open decisions.
+
+The PRD is the implementation proposal. Its script examples describe interfaces to be built; they are not currently runnable.
 
 ## Project scope
 
