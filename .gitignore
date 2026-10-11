@@ -1,0 +1,44 @@
+# Credentials and machine-specific settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.impeccable/config.local.json
+
+# Local research inputs and generated training artifacts
+data/
+artifacts/
+runs/
+results/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.joblib
+*.pkl
+
+# Scratch work and environments
+tmp/
+temp/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+dist/
+build/
+.next/
+coverage/
+
+# Editor and OS state
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
