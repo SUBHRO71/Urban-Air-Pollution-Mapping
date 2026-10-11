@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "urban-air-lab"
+version = "0.1.0"
+description = "Reproducible local air quality forecasting and model comparison"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1", "uvicorn>=0.30,<1", "numpy>=1.26,<3",
+  "pandas>=2.2,<3", "scikit-learn>=1.5,<2", "torch>=2.5,<3",
+  "statsmodels>=0.14,<1", "requests>=2.32,<3", "python-multipart>=0.0.20,<1",
+  "openpyxl>=3.1,<4", "pyarrow>=18,<25"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "httpx>=0.27,<1"]
+
+[project.scripts]
+urban-air = "urban_air.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["urban_air*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+

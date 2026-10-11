@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Undecided. The PRD will recommend a web interface with a Python training service. This is a planning recommendation; no implementation framework has been selected by the user.
+React/TypeScript/Vite interface and FastAPI/PyTorch Python service, implementing the PRD's recommended stack as authorized by the user's "create this" follow-up. SQLite and local artifacts preserve experiment evidence. Local execution is the deployment target.
 
 ## Users
 
@@ -20,7 +20,7 @@ Choose an air-quality dataset and an individual or combined algorithm, train and
 
 ## Operating Context
 
-Confirmed: local computer first, with optional GPU support. The immediate deliverable is a product requirements document and a public GitHub repository with incremental commits. The dashboard and training runner are future implementation work.
+Confirmed: local computer first, with optional GPU support. The user has authorized implementing the PRD and committing/pushing the project. The reference computer has approximately 16 GB RAM, 12 logical processors and an NVIDIA RTX 2050; CPU execution is the verification baseline.
 
 ## Capabilities and Constraints
 
